@@ -87,7 +87,7 @@ async def get_whois_info(domains: List[str]):
 
 
 def handle_shutdown(signum, frame):
-    # DB conn closing...
+    db.close()
     print("Received shutdown signal. Stopping...")
     raise SystemExit(0)
 
