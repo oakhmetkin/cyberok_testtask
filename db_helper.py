@@ -14,16 +14,28 @@ def __singleton(class_):
 @__singleton
 class DBHelper:
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, logger=None) -> None:
+        self.logger = logger
+        self.connected = False
         self.connect(path)
 
     def connect(self, path):
-        self.__con = sqlite3.connect(path)
-        self.__cur = self.__con.cursor()
-        self.init_tables()
+        if self.connected:
+            return
+        
+        try:
+            self.__con = sqlite3.connect(path)
+            self.__cur = self.__con.cursor()
+            self.connected = True
+            self.logger.info('New connection to database')
+            self.init_tables()
+        except sqlite3.Error:
+            self.logger.error(f'Error connecting to database')
     
     def close(self):
         self.__con.close()
+        self.connected = False
+        self.logger.info('Database connection closed')
     
     def init_tables(self) -> None:
         whois_table = '''
@@ -44,6 +56,7 @@ CREATE TABLE IF NOT EXISTS fqdn_ip (
 '''
         self.__cur.execute(fqdn_ip_table)
         self.__con.commit()
+        self.logger.info('Tables are initialized (or already existed)')
     
     # whois
     def get_whois(self, dmn: str) -> dict:

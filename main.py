@@ -1,21 +1,24 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI
 import uvicorn
-from typing import List
 
+from typing import List
 import socket
 import whois
-import signal
 from datetime import datetime
 
 from db_helper import DBHelper
+from logger import setup_logger
 
 
+logger = setup_logger(__name__)
 app = FastAPI()
-db = DBHelper('cyberok.sqlite')
+db = DBHelper('cyberok.sqlite', logger)
 
 
 @app.post('/get_domains_by_ips/')
 async def get_domains_by_ips(ips: List[str]):
+    logger.info(f'request to /get_domains_by_ips/, len of ips: {len(ips)}')
+
     domains = []
     
     for ip in ips:
@@ -30,6 +33,8 @@ async def get_domains_by_ips(ips: List[str]):
 
 @app.post('/get_ips_by_fqdns/')
 async def get_ips_by_fqdns(fqdns: List[str]):
+    logger.info(f'request to /get_ips_by_fqdns/, len of fqdns: {len(fqdns)}')
+
     ips = []
 
     for fqdn in fqdns:
@@ -64,6 +69,8 @@ def datetime_to_str(obj: List[datetime] | datetime):
 
 @app.post('/get_whois_info/')
 async def get_whois_info(domains: List[str]):
+    logger.info(f'request to /get_whois_info/, len of domains: {len(domains)}')
+
     ans = []
 
     for dmn in domains:
@@ -86,12 +93,5 @@ async def get_whois_info(domains: List[str]):
     return ans
 
 
-def handle_shutdown(signum, frame):
-    db.close()
-    print("Received shutdown signal. Stopping...")
-    raise SystemExit(0)
-
-
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, handle_shutdown)
     uvicorn.run(app, host="127.0.0.1", port=8000)
