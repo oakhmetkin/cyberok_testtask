@@ -1,14 +1,16 @@
 from fastapi import FastAPI
 import uvicorn
+import asyncio
 
 from typing import List
-import socket
-import whois
-from datetime import datetime
+import signal
 
 from db_helper import DBHelper
 from logger import setup_logger
+import utils
 
+
+DB_UPDATE_INTERVAL = 5
 
 logger = setup_logger(__name__)
 app = FastAPI()
@@ -22,11 +24,8 @@ async def get_domains_by_ips(ips: List[str]):
     domains = []
     
     for ip in ips:
-        try:
-            dmn = socket.gethostbyaddr(ip)
-            domains.append(dmn[0])
-        except socket.herror:
-            domains.append(None)
+        dmn = utils.get_domain_by_ip(ip)
+        domains.append(dmn)
     
     return domains
 
@@ -41,30 +40,12 @@ async def get_ips_by_fqdns(fqdns: List[str]):
         ip = db.get_ip(fqdn)
 
         if not ip:
-            try:
-                ip = socket.gethostbyname(fqdn)
-            except socket.gaierror:
-                ip = None
+            ip = utils.get_ip_by_fqdn(fqdn)
             db.save_ip(fqdn, ip)
 
         ips.append(ip)
 
     return ips
-
-
-def datetime_to_str(obj: List[datetime] | datetime):
-    if isinstance(obj, datetime):
-        return obj.strftime('%Y-%m-%dT%H:%M:%S')
-    elif isinstance(obj, list):
-        lst = []
-
-        for d in obj:
-            lst.append(d.strftime('%Y-%m-%dT%H:%M:%S'))
-
-        return lst
-    else:
-        raise TypeError('Invalid type of obj! It must to be \
-                        List[datetime] | datetime')
 
 
 @app.post('/get_whois_info/')
@@ -77,20 +58,24 @@ async def get_whois_info(domains: List[str]):
         dct = db.get_whois(dmn)
 
         if not dct:
-            info = whois.whois(dmn)
-
-            dct = {
-                'registrar': info.registrar,
-                'creation_date': datetime_to_str(info.creation_date),
-                'expiration_date': datetime_to_str(info.expiration_date),
-                'name_servers': info.name_servers,
-                'name': info.name,
-            }
+            dct = utils.get_whois_info(dmn)
             db.save_whois(dmn, dct)
 
         ans.append(dct)
     
     return ans
+
+
+# database updating
+async def update_db():
+    while True:
+        db.update_db()
+        await asyncio.sleep(DB_UPDATE_INTERVAL)
+
+
+@app.on_event('startup')
+async def startup_event():
+    asyncio.create_task(update_db())
 
 
 if __name__ == "__main__":
