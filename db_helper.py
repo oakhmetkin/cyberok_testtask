@@ -19,6 +19,7 @@ class DBHelper:
     def __init__(self, path: str, logger=None) -> None:
         self.logger = logger
         self.connected = False
+        self.__path = path
         self.connect(path)
 
     def connect(self, path):
@@ -29,7 +30,7 @@ class DBHelper:
             self.__con = sqlite3.connect(path)
             self.__cur = self.__con.cursor()
             self.connected = True
-            self.logger.info('New connection to database')
+            self.logger.info(f'Connected to {self.__path}')
             self.init_tables()
         except sqlite3.Error:
             self.logger.error(f'Error connecting to database')

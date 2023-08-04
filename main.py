@@ -3,18 +3,16 @@ import uvicorn
 import asyncio
 
 from typing import List
-import signal
 
+import config
 from db_helper import DBHelper
 from logger import setup_logger
 import utils
 
 
-DB_UPDATE_INTERVAL = 5
-
 logger = setup_logger(__name__)
 app = FastAPI()
-db = DBHelper('cyberok.sqlite', logger)
+db = DBHelper(config.DB_PATH, logger)
 
 
 @app.post('/get_domains_by_ips/')
@@ -70,7 +68,7 @@ async def get_whois_info(domains: List[str]):
 async def update_db():
     while True:
         db.update_db()
-        await asyncio.sleep(DB_UPDATE_INTERVAL)
+        await asyncio.sleep(config.DB_UPDATE_INTERVAL)
 
 
 @app.on_event('startup')
@@ -79,4 +77,7 @@ async def startup_event():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    logger.info(f'HOST:PORT - {config.HOST}:{config.PORT}')
+    logger.info(f'DB_PATH - {config.DB_PATH}')
+    logger.info(f'DB_UPD_INTERVAL - {config.DB_UPDATE_INTERVAL} sec')
+    uvicorn.run(app, host=config.HOST, port=config.PORT)
