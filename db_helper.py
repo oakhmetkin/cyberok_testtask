@@ -2,14 +2,28 @@ import sqlite3
 import json
 
 
-# todo: implement singleton behavior
+def __singleton(class_):
+    instances = {}
+    def getinstance(*args, **kwargs):
+        if class_ not in instances:
+            instances[class_] = class_(*args, **kwargs)
+        return instances[class_]
+    return getinstance
 
+
+@__singleton
 class DBHelper:
 
     def __init__(self, path: str) -> None:
+        self.connect(path)
+
+    def connect(self, path):
         self.__con = sqlite3.connect(path)
         self.__cur = self.__con.cursor()
         self.init_tables()
+    
+    def close(self):
+        self.__con.close()
     
     def init_tables(self) -> None:
         whois_table = '''
@@ -70,6 +84,5 @@ INSERT INTO whois (domain, value) VALUES ('{dmn}', '{val}')
         self.__con.commit()
     
     def update_ip(self, fqdn, ip) -> None:
-        self.__cur.execute(f'UPDATE fqdn_ip \
-                           SET fqdn="{fqdn}", ip="{ip}"')
+        self.__cur.execute(f'UPDATE fqdn_ip SET ip="{ip}" WHERE fqdn="{fqdn}"')
         self.__con.commit()
