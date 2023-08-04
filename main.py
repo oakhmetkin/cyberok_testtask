@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Body
+import uvicorn
 from typing import List
 
 import socket
 import whois
+import signal
 
 app = FastAPI()
 
@@ -53,3 +55,14 @@ async def get_whois_info(domains: List[str]):
         })
     
     return ans
+
+
+def handle_shutdown(signum, frame):
+    # DB conn closing...
+    print("Received shutdown signal. Stopping...")
+    raise SystemExit(0)
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, handle_shutdown)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
