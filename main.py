@@ -15,6 +15,11 @@ app = FastAPI()
 db = DBHelper(config.DB_PATH, logger)
 
 
+@app.get('/')
+def root():
+    return 'Service is running...'
+
+
 @app.post('/get_domains_by_ips/')
 async def get_domains_by_ips(ips: List[str]):
     logger.info(f'request to /get_domains_by_ips/, len of ips: {len(ips)}')
