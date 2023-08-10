@@ -3,23 +3,35 @@ import whois
 
 from typing import List
 from datetime import datetime
+from domain_parser import parse_domains
 
 
-def get_domain_by_ip(ip: str):
+def get_domains_by_ip(ip: str) -> List[str]:
+    domains = []
+
     try:
-        return socket.gethostbyaddr(ip)
-    except socket.herror:
-        return None
+        domains = parse_domains(ip)
+    except Exception:
+        pass
+
+    try:
+        dmn = socket.gethostbyaddr(ip)[0]
+        if dmn not in domains:
+            domains.append(dmn)
+    except Exception:
+        pass
+    
+    return domains
 
 
-def get_ip_by_fqdn(fqdn: str):
+def get_ip_by_fqdn(fqdn: str) -> str:
     try:
         return socket.gethostbyname(fqdn)
     except socket.gaierror:
         return None
 
 
-def __datetime_to_str(obj: List[datetime] | datetime):
+def __datetime_to_str(obj: List[datetime] | datetime) -> List[str] | str:
     if isinstance(obj, datetime):
         return obj.strftime('%Y-%m-%dT%H:%M:%S')
     elif isinstance(obj, list):
@@ -34,7 +46,7 @@ def __datetime_to_str(obj: List[datetime] | datetime):
                         List[datetime] | datetime')
 
 
-def get_whois_info(domain: str):
+def get_whois_info(domain: str) -> dict:
     info = whois.whois(domain)
 
     return {
