@@ -12,7 +12,7 @@ def setup_logger(name: str):
     file_handler.setLevel(logging.INFO)
 
     formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        "%(levelname)s:     %(asctime)s - %(name)s - %(message)s (%(filename)s:%(lineno)d)"
         )
     console_handler.setFormatter(formatter)
     file_handler.setFormatter(formatter)
