@@ -1,4 +1,4 @@
-import sqlite3
+import asyncio
 import json
 import aiosqlite
 from typing import List
@@ -21,14 +21,18 @@ CREATE TABLE IF NOT EXISTS whois (
     value TEXT
 )
 ''')
-            await db.commit()
-        
-        async with aiosqlite.connect(self.path) as db:
             await db.execute('''
 CREATE TABLE IF NOT EXISTS fqdn_ip (
     id INTEGER PRIMARY KEY,
     fqdn TEXT,
     ip TEXT
+)
+''')
+            await db.execute('''
+CREATE TABLE IF NOT EXISTS domains_by_ips_updates (
+    id INTEGER PRIMARY KEY,
+    ip TEXT,
+    last_update DATE DEFAULT (DATETIME('now', '-10 years'))
 )
 ''')
             await db.commit()
@@ -114,6 +118,11 @@ UPDATE fqdn_ip
 SET ip="{ip}"
 WHERE fqdn="{fqdn}"
 ''')
+            ips_in_brackets = list(map(lambda it: f'("{it}")', dct.values()))
+            ips_in_str = ','.join(ips_in_brackets)
+            await db.execute(f'''
+INSERT OR REPLACE INTO domains_by_ips_updates (ip) VALUES {ips_in_str}
+''')
             await db.commit()
     
 
@@ -144,7 +153,7 @@ WHERE
             ips_in_brackets = list(map(lambda it: f'("{it}")', ips))
             ips_in_str = ','.join(ips_in_brackets)
             await db.execute(f'''
-INSERT INTO fqdn_ip (ip) VALUES {ips_in_str}
+INSERT OR REPLACE INTO domains_by_ips_updates (ip) VALUES {ips_in_str}
 ''')
             await db.commit()
     
@@ -153,22 +162,13 @@ INSERT INTO fqdn_ip (ip) VALUES {ips_in_str}
             return
         
         async with aiosqlite.connect(self.path) as db:
-            ips_in_brackets = list(map(lambda it: f'("{it}")', dct.keys()))
-            ips_in_str = ','.join(ips_in_brackets)
-            await db.execute(f'''
-DELETE FROM fqdn_ip
-WHERE
-    ip IS NOT NULL AND
-    fqdn IS NULL AND
-    ip IN ({ips_in_str})
-''')
             data = []
             for ip, domains in dct.items():
                 if domains:
-                    data.extend([(ip, dmn) for dmn in domains])
+                    data.extend([(dmn, ip) for dmn in domains])
                 
             await db.executemany(f'''
-INSERT INTO fqdn_ip (ip, fqdn) VALUES (?, ?)
+INSERT OR REPLACE INTO fqdn_ip (fqdn, ip) VALUES (?, ?)
 ''', data)
             await db.commit()
 
@@ -193,38 +193,36 @@ WHERE
             await self.update_ips_by_fqdns(dct)
             await db.commit()
         
-        # updating fqdns by ips in 'fqdn_ip' table
+        # updating domains by ips in 'fqdn_ip' table
         async with aiosqlite.connect(self.path) as db:
             cur = await db.execute(f'''
-SELECT ip
-FROM fqdn_ip 
-WHERE
-    fqdn IS NULL AND
-    ip IS NOT NULL 
-''')
-            unknown_ips = list(map(lambda it: it[0], await cur.fetchall()))
-
-            cur = await db.execute(f'''
 SELECT DISTINCT ip
-FROM fqdn_ip
-WHERE
-    fqdn IS NOT NULL AND
-    ip IS NOT NULL
-ORDER BY RANDOM()
+FROM domains_by_ips_updates
+WHERE last_update < (DATETIME('now', '-10 days'))
+ORDER BY last_update ASC
 LIMIT 10
 ''')
-            rnd_ips_to_upd = list(map(lambda it: it[0], await cur.fetchall()))
-            unknown_ips.extend(rnd_ips_to_upd)
-
+            unknown_ips = list(map(lambda it: it[0], await cur.fetchall()))
             known_domains = await self.get_domains_by_ips(unknown_ips)
 
             dct = {}
             for ip in unknown_ips:
                 new_domains = set(utils.get_domains_by_ip(ip))
-                dct[ip] = list(new_domains - set(known_domains[ip]))
+                dct[ip] = list(new_domains - set(known_domains.get(ip, [])))
+                await asyncio.sleep(2)
             
             await self.update_domains_by_ips(dct)
+
+            ips_in_brackets = list(map(lambda it: f'"{it}"', unknown_ips))
+            ips_in_str = ','.join(ips_in_brackets)
+            await db.execute(f'''
+UPDATE domains_by_ips_updates
+SET last_update=(DATETIME('now'))
+WHERE ip IN ({ips_in_str})
+''')
             await db.commit()
+
+            self.logger.info(f'Updated {len(unknown_ips)} ips')
         
         # updating 'whois' table
         async with aiosqlite.connect(self.path) as db:
