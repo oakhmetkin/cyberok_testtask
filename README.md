@@ -22,25 +22,44 @@ Service is built using Python and FastAPI. It provides next functionality:
 
 ## API Description
 
-### POST /get_domains_by_ips/
+Response contains 2 fields: meta, answer. Answer contains requested data. 
+Meta contains 2 fields: status, message. Status belongs { "fine", "good" }. 
+"good" means all requested data retrieved. "fine" means that some data is 
+waiting for DB updating.
+
+### Methods
+
+- POST /get_domains_by_ips/
 
 ```json
 // request:
-// POST http://127.0.0.1:8000/get_ips_by_fqdns
+// POST http://127.0.0.1:8000/get_domains_by_ips
 // raw data:
 [
-    "8.8.8.8",
-    "8.8.4.4"
+    "64.233.162.136",
+    "169.46.57.243"
 ]
 
 // response:
-[
-    "dns.google",
-    "dns.google"
-]
+{
+    "meta": {
+        "status": "good",
+        "message": "The request has been fully processed."
+    },
+    "answer": {
+        "64.233.162.136": [
+            "youtube.com",
+            "li-in-f136.1e100.net"
+        ],
+        "169.46.57.243": [
+            "wheather.com",
+            "f3.39.2ea9.ip4.static.sl-reverse.com"
+        ]
+    }
+}
 ```
 
-### POST /get_ips_by_fqdns/
+- POST /get_ips_by_fqdns/
 
 ```json
 // request:
@@ -52,13 +71,19 @@ Service is built using Python and FastAPI. It provides next functionality:
 ]
 
 // response:
-[
-    "64.233.163.138",
-    "5.255.255.77"
-]
+{
+    "meta": {
+        "status": "good",
+        "message": "The request has been fully processed."
+    },
+    "answer": {
+        "google.com": "64.233.165.113",
+        "yandex.ru": "5.255.255.70"
+    }
+}
 ```
 
-### POST /get_whois_info/
+- POST /get_whois_info/
 
 ```json
 // request:
@@ -70,31 +95,37 @@ Service is built using Python and FastAPI. It provides next functionality:
 ]
 
 // response:
-[
-    {
-        "registrar": "MarkMonitor Inc.",
-        "creation_date": "1997-09-15T04:00:00",
-        "expiration_date": "2028-09-14T04:00:00",
-        "name_servers": [
-            "NS1.GOOGLE.COM",
-            "NS2.GOOGLE.COM",
-            "NS3.GOOGLE.COM",
-            "NS4.GOOGLE.COM"
-        ],
-        "name": null
+{
+    "meta": {
+        "status": "good",
+        "message": "The request has been fully processed."
     },
-    {
-        "registrar": "MarkMonitor Inc.",
-        "creation_date": "1995-01-18T05:00:00",
-        "expiration_date": "2024-01-19T05:00:00",
-        "name_servers": [
-            "NS1.YAHOO.COM",
-            "NS2.YAHOO.COM",
-            "NS3.YAHOO.COM",
-            "NS4.YAHOO.COM",
-            "NS5.YAHOO.COM"
-        ],
-        "name": null
+    "answer": {
+        "mail.yahoo.com": {
+            "registrar": "MarkMonitor Inc.",
+            "creation_date": "1995-01-18T05:00:00",
+            "expiration_date": "2024-01-19T05:00:00",
+            "name_servers": [
+                "NS1.YAHOO.COM",
+                "NS2.YAHOO.COM",
+                "NS3.YAHOO.COM",
+                "NS4.YAHOO.COM",
+                "NS5.YAHOO.COM"
+            ],
+            "name": null
+        },
+        "www.google.com": {
+            "registrar": "MarkMonitor Inc.",
+            "creation_date": "1997-09-15T04:00:00",
+            "expiration_date": "2028-09-14T04:00:00",
+            "name_servers": [
+                "NS1.GOOGLE.COM",
+                "NS2.GOOGLE.COM",
+                "NS3.GOOGLE.COM",
+                "NS4.GOOGLE.COM"
+            ],
+            "name": null
+        }
     }
-]
+}
 ```
