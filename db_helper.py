@@ -222,7 +222,8 @@ WHERE ip IN ({ips_in_str})
 ''')
             await db.commit()
 
-            self.logger.info(f'Updated {len(unknown_ips)} ips')
+            if unknown_ips:
+                self.logger.info(f'Updated {len(unknown_ips)} ips')
         
         # updating 'whois' table
         async with aiosqlite.connect(self.path) as db:
@@ -241,5 +242,3 @@ WHERE
             
             await self.update_whoises_by_domains(dct)
             await db.commit()
-        
-        self.logger.info(f'Database successfully updated')
